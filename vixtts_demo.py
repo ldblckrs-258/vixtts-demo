@@ -208,7 +208,7 @@ def run_tts(lang, tts_text, speaker_audio_file, use_deepfilter, normalize_text):
 
     from pprint import pprint
 
-    pprint(sentences)
+    pprint(sentences[0])
 
     wav_chunks = []
     for sentence in sentences:
@@ -382,9 +382,9 @@ if __name__ == "__main__":
 
                 tts_text = gr.Textbox(
                     label="Input Text.",
-                    value="Xin chào, tôi là một công cụ chuyển đổi văn bản thành giọng nói tiếng Việt được phát triển bởi nhóm Nón lá.",
+                    value="Xin chào, tôi là một công cụ chuyển đổi văn bản thành giọng nói tiếng Việt.",
                 )
-                tts_btn = gr.Button(value="Step 2 - Inference", variant="primary")
+                tts_btn = gr.Button(value="Step 2 - Speech Generate", variant="primary")
 
             with gr.Column() as col3:
                 progress_gen = gr.Label(label="Progress:")
@@ -408,4 +408,5 @@ if __name__ == "__main__":
             outputs=[progress_gen, tts_output_audio],
         )
 
+    demo.queue()  # 🔹 Thêm dòng này để bật queue mode
     demo.launch(share=True, debug=False, server_port=args.port, server_name="0.0.0.0")
