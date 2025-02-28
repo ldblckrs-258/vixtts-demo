@@ -1,3 +1,9 @@
+---
+title: vi-tts
+app_file: vixtts_demo.py
+sdk: gradio
+sdk_version: 3.50.2
+---
 # viXTTS Demo 🗣️🔥
 
 ## Sử dụng nhanh ✨
