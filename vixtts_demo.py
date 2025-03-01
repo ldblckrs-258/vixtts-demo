@@ -7,7 +7,7 @@ import os
 import string
 import subprocess
 import sys
-import tempfile
+import winsound 
 from datetime import datetime
 
 import gradio as gr
@@ -17,7 +17,7 @@ import torchaudio
 from huggingface_hub import hf_hub_download, snapshot_download
 from underthesea import sent_tokenize
 from unidecode import unidecode
-from vinorm import TTSnorm
+from normalize_vi import normalize_vietnamese_text as NVT
 
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
@@ -33,6 +33,14 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def clear_gpu_cache():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+        
+def play_notification_sound():
+    """Play a notification sound when processing is complete"""
+    try:
+        # Use Windows default notification sound
+        winsound.PlaySound("SystemComplete", winsound.SND_ALIAS)
+    except Exception as e:
+        print(f"Could not play notification sound: {e}")
 
 
 def load_model(checkpoint_dir="model/", repo_id="capleaf/viXTTS", use_deepspeed=False):
@@ -101,7 +109,7 @@ def generate_hash(data):
 
 def get_file_name(text, max_char=50):
     filename = text[:max_char]
-    filename = filename.lower()
+    filename = NVT(filename.lower())
     filename = filename.replace(" ", "_")
     filename = filename.translate(
         str.maketrans("", "", string.punctuation.replace("_", ""))
@@ -114,7 +122,7 @@ def get_file_name(text, max_char=50):
 
 def normalize_vietnamese_text(text):
     text = (
-        TTSnorm(text, unknown=False, lower=False, rule=True)
+        NVT(text)
         .replace("..", ".")
         .replace("!.", "!")
         .replace("?.", "?")
@@ -122,8 +130,7 @@ def normalize_vietnamese_text(text):
         .replace(" ,", ",")
         .replace('"', "")
         .replace("'", "")
-        .replace("AI", "Ây Ai")
-        .replace("A.I", "Ây Ai")
+        .replace(":", ",")
     )
     return text
 
@@ -143,7 +150,7 @@ def calculate_keep_len(text, lang):
     return -1
 
 
-def run_tts(lang, tts_text, speaker_audio_file, use_deepfilter, normalize_text):
+def run_tts(lang, tts_text, speaker_audio_file, use_deepfilter, normalize_text, play_sound):
     global filter_cache, conditioning_latents_cache, cache_queue
 
     if XTTS_MODEL is None:
@@ -208,7 +215,7 @@ def run_tts(lang, tts_text, speaker_audio_file, use_deepfilter, normalize_text):
 
     from pprint import pprint
 
-    pprint(sentences[0])
+    pprint(sentences)
 
     wav_chunks = []
     for sentence in sentences:
@@ -238,6 +245,9 @@ def run_tts(lang, tts_text, speaker_audio_file, use_deepfilter, normalize_text):
     out_path = os.path.join(OUTPUT_DIR, f"{get_file_name(tts_text)}_{gr_audio_id}.wav")
     print("Saving output to ", out_path)
     torchaudio.save(out_path, out_wav, 24000)
+    
+    if play_sound:
+        play_notification_sound()
 
     return "Speech generated !", out_path
 
@@ -384,6 +394,11 @@ if __name__ == "__main__":
                     label="Input Text.",
                     value="Xin chào, tôi là một công cụ chuyển đổi văn bản thành giọng nói tiếng Việt.",
                 )
+                
+                play_sound = gr.Checkbox(
+                    label="Play notification sound when complete",
+                    value=True,
+                )
                 tts_btn = gr.Button(value="Step 2 - Speech Generate", variant="primary")
 
             with gr.Column() as col3:
@@ -404,6 +419,7 @@ if __name__ == "__main__":
                 speaker_reference_audio,
                 use_filter,
                 normalize_text,
+                play_sound
             ],
             outputs=[progress_gen, tts_output_audio],
         )
